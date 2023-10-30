@@ -1,0 +1,4 @@
+﻿pch.obj : warning LNK4258: '/ENTRY:WinMainCRTStartup' 지시문은 '/ENTRY:wWinMainCRTStartup' 스위치와 호환되지 않습니다. 무시됩니다.
+RFID.obj : warning LNK4258: '/ENTRY:WinMainCRTStartup' 지시문은 '/ENTRY:wWinMainCRTStartup' 스위치와 호환되지 않습니다. 무시됩니다.
+RFIDDlg.obj : warning LNK4258: '/ENTRY:WinMainCRTStartup' 지시문은 '/ENTRY:wWinMainCRTStartup' 스위치와 호환되지 않습니다. 무시됩니다.
+  RFID.vcxproj -> D:\woochangmin\C++\src\RFID\x64\Debug\RFID.exe
