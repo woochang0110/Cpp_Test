@@ -36,6 +36,12 @@
     <ClInclude Include="is_d2xx.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="RFID_REGISTER.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="SELRes.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RFID.cpp">
@@ -48,6 +54,12 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="is_d2xx.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="RFID_REGISTER.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="SELRes.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

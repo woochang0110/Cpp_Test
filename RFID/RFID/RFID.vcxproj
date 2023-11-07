@@ -45,7 +45,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
     <UseOfMfc>Dynamic</UseOfMfc>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -192,6 +192,8 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="RFID.h" />
     <ClInclude Include="RFIDDlg.h" />
+    <ClInclude Include="RFID_REGISTER.h" />
+    <ClInclude Include="SELRes.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
@@ -204,6 +206,8 @@
     </ClCompile>
     <ClCompile Include="RFID.cpp" />
     <ClCompile Include="RFIDDlg.cpp" />
+    <ClCompile Include="RFID_REGISTER.cpp" />
+    <ClCompile Include="SELRes.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="RFID.rc" />

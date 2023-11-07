@@ -7,9 +7,12 @@
 #ifndef PCH_H
 #define PCH_H
 
-//#include <iostream>
+#include <iostream>
 #include <mysql.h>
-
+#include <string>
+#include <cstring>
+#include "RFID_REGISTER.h"
+#pragma warning (disable:4996)
 using namespace std;
 // 여기에 미리 컴파일하려는 헤더 추가
 //#include "framework.h"
