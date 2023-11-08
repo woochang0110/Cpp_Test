@@ -59,7 +59,7 @@ public:
 	afx_msg void OnDBSelect();
 	afx_msg void OnReadOnce();
 	afx_msg void OnDBUpdate();
-	afx_msg void OnDataInput();
+	afx_msg void OnMusicPlay();
 	afx_msg void OnReadManyTime();
 
 	CStatic m_picture_control;

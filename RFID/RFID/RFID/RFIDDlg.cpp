@@ -14,6 +14,10 @@
 #include "SELRes.h"
 #include "afxdialogex.h"
 
+#include "mmsystem.h"
+#pragma comment(lib,"winmm.lib")
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -132,7 +136,7 @@ BEGIN_MESSAGE_MAP(CRFIDDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON1, &CRFIDDlg::OnDBSelect)
 	ON_BN_CLICKED(IDC_BUTTON2, &CRFIDDlg::OnReadOnce)
 	ON_BN_CLICKED(IDC_BUTTON3, &CRFIDDlg::OnDBUpdate)
-	ON_BN_CLICKED(IDC_BUTTON4, &CRFIDDlg::OnDataInput)
+	ON_BN_CLICKED(IDC_BUTTON4, &CRFIDDlg::OnMusicPlay)
 	ON_BN_CLICKED(IDC_BUTTON5, &CRFIDDlg::OnReadManyTime)
 
 END_MESSAGE_MAP()
@@ -287,26 +291,7 @@ UINT ThreadForCounting(LPVOID param)
 	while (pMain->m_isWorkingThread)
 	{
 		Sleep(1000);
-		temp1 = _T("");
-		if (pMain->flag_r == 0)
-		{
-			if (is_WriteReadCommand(pMain->ftHandle, CM1_ISO15693, CM2_ISO15693_ACTIVE,
-				pMain->writeLength, pMain->wirteData, &pMain->readLength, pMain->readData) == IS_OK)
-			{
-				int i;
-				printf("ISO 15693 UID : ");
-				for (i = 0; i < pMain->readLength; i++)
-				{
-					temp.Format(_T("%02x "), pMain->readData[i]);
-					temp1 += temp;
-				}
-				printf("%s", temp1);
-				
-				pMain->m_ctrl_UID.SetWindowTextA(temp1);
-				//dlg에 데이터 올리는 함수 main 쓰레드가 돌고 있는데 sub 쓰레드가 접근하려고 하면 visual studio에서 막아버림.
-				printf("\n");
-			}
-		}
+		pMain->OnReadOnce();
 	}
 
 	return 0;
@@ -322,18 +307,8 @@ void CRFIDDlg::OnDBSelect()
 	m_ctrl_Name.SetWindowTextA(_T(""));
 	m_ctrl_UID.SetWindowTextA(_T(""));
 	m_ctrl_pic_name.SetWindowTextA(_T(""));
-//
-	CRect rect;//픽쳐 컨트롤의 크기를 저장할 CRect 객체
-	m_picture_control.GetWindowRect(rect);//GetWindowRect를 사용해서 픽쳐 컨트롤의 크기를 받는다.
-	CDC* dc; //픽쳐 컨트롤의 DC를 가져올  CDC 포인터
-	dc = m_picture_control.GetDC(); //픽쳐 컨트롤의 DC를 얻는다.
 
-	CImage image;//불러오고 싶은 이미지를 로드할 CImage 
-	image.Load("white.bmp");//이미지 로드
-	image.StretchBlt(dc->m_hDC, 0, 0, rect.Width(), rect.Height(), SRCCOPY);//이미지를 픽쳐 컨트롤 크기로 조정
-	ReleaseDC(dc);//DC 해제
-		
-//
+
 	m_ctrl_DBStatus.SetWindowTextA(_T("DB Select"));
 	char query[1024];
 	sprintf_s(query, 1024, "SELECT * FROM rfid");//아까전에 만들어줬던 db 내 테이블 이름
@@ -346,6 +321,7 @@ void CRFIDDlg::OnDBSelect()
 	}
 	else
 	{
+		db_select_result = _T("");
 		CString For_input_Test=_T("");
 		m_ctrl_DBStatus.SetWindowTextA(_T("DB Select SUCCESS"));
 		// Get Response
@@ -388,9 +364,8 @@ void CRFIDDlg::OnReadOnce()
 	//ISO15693모드로 읽기( 싱글모드 읽기 )
 	if (flag_r == 0)
 	{
-
-
-		{//---db 데이터 갯수 가져오기
+		int read_flag = 0;
+		//---db 데이터 갯수 가져오기
 
 			sprintf_s(select_num_query1, 30, "SELECT MAX(num) FROM rfid");
 
@@ -405,16 +380,17 @@ void CRFIDDlg::OnReadOnce()
 			num = atoi(cnum);
 			CString number;
 			number.Format(_T("%d"), num);
-			m_ctrl_Index.SetWindowTextA(number);
+			//
 			//num= index 최대값
 
-		}//-------db data 갯수 갖고오기 끝
+		//-------db data 갯수 갖고오기 끝
 
 		if (is_WriteReadCommand(ftHandle, CM1_COMMON, CMD2_COMMON_ALL_UID_READ,
 			writeLength, wirteData, &readLength, readData) == IS_OK) {
 
 			if (readLength == 8)//정상적으로 읽힌 단일 데이터라면
 			{
+				m_UID = _T("");
 				printf("ISO 15693 UID : ");
 
 				insert_query.Format(_T("INSERT INTO rfid(num,uid,name,image) VALUES(%d,'"), num + 1);
@@ -424,13 +400,12 @@ void CRFIDDlg::OnReadOnce()
 					m_UID += temp;//temp1이 for문 끝나면 uid 전체를 갖고있게됨.
 					printf("%02x", readData[i]);
 				}
-
-
+				read_flag = 1;
 			}
 			else if (readLength == 4)//정상적으로 읽힌 단일 데이터라면
 			{
 				printf("ISO 14443AB UID : ");
-
+				m_UID = _T("");
 				insert_query.Format(_T("INSERT INTO rfid(num,uid,name,image) VALUES(%d,'"), num+1);
 				for (int i = 0; i < readLength; i++)
 				{
@@ -438,130 +413,133 @@ void CRFIDDlg::OnReadOnce()
 					m_UID += temp;//temp1이 for문 끝나면 uid 전체를 갖고있게됨.
 					printf("%02x", readData[i]);
 				}
+				read_flag = 1;
 			}
-			m_ctrl_UID.SetWindowTextA(m_UID);
-			//=====db에 해당 uid가 있는지 체크
-			CString find_uid_query = _T("SELECT * FROM rfid WHERE uid='");
-			find_uid_query += m_UID;
-			find_uid_query += "'";
-			const char* tmp;
-			tmp = (CStringA)find_uid_query;
-			if (mysql_query(conn, tmp))
+			if(read_flag)//정상적으로 14443이나 15693 데이터가 읽혔다면
 			{
-				printf("SQL Fail");
-			}
-			else
-			{
-				// Get Response
-				result = mysql_store_result(conn);
-				if (!mysql_fetch_row(result)) {//동일한 값이 없다면 insert
-					m_ctrl_DBStatus.SetWindowTextA(_T("no same value in db->INSERT"));
-					insert_query.Insert(insert_query.GetLength(), m_UID);//uid 전체 넘겨주기 배열 0부터니까 위에 쿼리 길이-1
-					//insert_query += temp1;
-
-					RFID_REGISTER RR;
-					RR.DoModal();
-
-					insert_query.Insert(insert_query.GetLength(), temp2);
-
-					temp3 = m_str_Name;
-					temp3 += "','";
-					temp3 += m_str_pic_path;
-					temp3 += "')";
-					
-					insert_query.Insert(insert_query.GetLength(), temp3);
-					cout << insert_query << endl;
-
-					UpdateData(FALSE);
-
-
-					printf("\n");
-
-
-
-					const char* insert_query1;
-					insert_query1 = (CStringA)insert_query;
-
-					//for (i = 0; i < insert_query.GetLength(); i++)
-					//{
-					//	insert_query1[i] = insert_query[i];
-					//	printf("%c", insert_query1[i]);//(char*)(LPCTSTR)
-					//}
-
-					printf("\n");
-					printf("\n");
-
-
-					// Send Query
-					if (mysql_query(conn, insert_query1))//insert_query1
-					{
-						printf("SQL Fail");
-					}
+				read_flag = 0;
+				m_ctrl_UID.SetWindowTextA(m_UID);
+				//=====db에 해당 uid가 있는지 체크
+				CString find_uid_query = _T("SELECT * FROM rfid WHERE uid='");
+				find_uid_query += m_UID;
+				find_uid_query += "'";
+				const char* tmp;
+				tmp = (CStringA)find_uid_query;
+				if (mysql_query(conn, tmp))
+				{
+					printf("SQL Fail");
+				}
+				else
+				{
 					// Get Response
 					result = mysql_store_result(conn);
+					if (!mysql_fetch_row(result)) {//동일한 값이 없다면 insert
+						m_ctrl_DBStatus.SetWindowTextA(_T("no same value in db->INSERT"));
+						insert_query.Insert(insert_query.GetLength(), m_UID);//uid 전체 넘겨주기 배열 0부터니까 위에 쿼리 길이-1
+						//insert_query += temp1;
+						number.Format(_T("%d"), num+1);
+						m_ctrl_Index.SetWindowTextA(number);
+						RFID_REGISTER RR;
+						RR.DoModal();
 
-				}
-				else //동일한 값이 있다면 select
-				{
-					m_ctrl_DBStatus.SetWindowTextA(_T("same value on db->SELECT"));
-					//m_ctrl_UID.SetWindowTextA(temp1);
-					CString select_num_query = _T("SELECT * FROM rfid WHERE uid='");
-					select_num_query += m_UID;
-					select_num_query += "'";
-					const char* tmp;
+						insert_query.Insert(insert_query.GetLength(), temp2);
+
+						temp3 = m_str_Name;
+						temp3 += "','";
+						temp3 += m_str_pic_path;
+						temp3 += "')";
+
+						insert_query.Insert(insert_query.GetLength(), temp3);
+						cout << insert_query << endl;
+
+						printf("\n");
+
+						const char* insert_query1;
+						insert_query1 = (CStringA)insert_query;
+
+						//for (i = 0; i < insert_query.GetLength(); i++)
+						//{
+						//	insert_query1[i] = insert_query[i];
+						//	printf("%c", insert_query1[i]);//(char*)(LPCTSTR)
+						//}
+
+						printf("\n");
+						printf("\n");
 
 
-
-					tmp = (CStringA)select_num_query;
-					//printf("%s", tmp);
-					// Send Query
-					if (mysql_query(conn, tmp))//select_uid_query
-					{
-						printf("SQL Fail");
-					}
-					// Get Response
-					else {
-						result = mysql_store_result(conn);
-					}
-
-
-					int m_llResCount = mysql_num_fields(result);
-					if (m_llResCount == 0)
-					{
-					}
-					else
-					{
-						CString s_row_data = _T("");
-						while ((m_mysqlRow = mysql_fetch_row(result)))
+						// Send Query
+						if (mysql_query(conn, insert_query1))//insert_query1
 						{
-							for (size_t i = 0; i < m_llResCount; i++)
+							printf("SQL Fail");
+						}
+						// Get Response
+						result = mysql_store_result(conn);
+
+					}
+					else //동일한 값이 있다면 select
+					{
+						m_ctrl_DBStatus.SetWindowTextA(_T("same value on db->SELECT"));
+						//m_ctrl_UID.SetWindowTextA(temp1);
+						CString select_num_query = _T("SELECT * FROM rfid WHERE uid='");
+						select_num_query += m_UID;
+						select_num_query += "'";
+						const char* tmp;
+
+
+
+						tmp = (CStringA)select_num_query;
+						//printf("%s", tmp);
+						// Send Query
+						if (mysql_query(conn, tmp))//select_uid_query
+						{
+							printf("SQL Fail");
+						}
+						// Get Response
+						else {
+							result = mysql_store_result(conn);
+						}
+
+
+						int m_llResCount = mysql_num_fields(result);
+						if (m_llResCount == 0)
+						{
+						}
+						else
+						{
+							CString s_row_data = _T("");
+							while ((m_mysqlRow = mysql_fetch_row(result)))
 							{
-								CString t(m_mysqlRow[i]);
-								s_row_data += t;
-								s_row_data += " ";
+								for (size_t i = 0; i < m_llResCount; i++)
+								{
+									CString t(m_mysqlRow[i]);
+									s_row_data += t;
+									s_row_data += " ";
+								}
+								m_ctrl_select_result.SetWindowTextA(s_row_data);
+								CString s_index(m_mysqlRow[0]);
+								CString s_name(m_mysqlRow[2]);//name
+								CString s_image_url(m_mysqlRow[3]);//image url
+								//std::cout << "\n" << strTest2 << std::endl;
+								//std::cout << "\n" << s_image_url << std::endl;
+								m_ctrl_Index.SetWindowTextA(s_index);
+								m_ctrl_Name.SetWindowTextA(s_name);
+								m_ctrl_pic_name.SetWindowTextA(s_image_url);
+
+								CRect rect;//픽쳐 컨트롤의 크기를 저장할 CRect 객체
+								m_picture_control.GetWindowRect(rect);//GetWindowRect를 사용해서 픽쳐 컨트롤의 크기를 받는다.
+								CDC* dc; //픽쳐 컨트롤의 DC를 가져올  CDC 포인터
+								dc = m_picture_control.GetDC(); //픽쳐 컨트롤의 DC를 얻는다.
+
+								CImage image;//불러오고 싶은 이미지를 로드할 CImage 
+								image.Load(s_image_url);//이미지 로드
+								image.StretchBlt(dc->m_hDC, 0, 0, rect.Width(), rect.Height(), SRCCOPY);//이미지를 픽쳐 컨트롤 크기로 조정
+								ReleaseDC(dc);//DC 해제
+								
+
 							}
-							m_ctrl_select_result.SetWindowTextA(s_row_data);
-							CString s_name(m_mysqlRow[2]);//name
-							CString s_image_url(m_mysqlRow[3]);//image url
-							//std::cout << "\n" << strTest2 << std::endl;
-							//std::cout << "\n" << s_image_url << std::endl;
-
-							m_ctrl_Name.SetWindowTextA(s_name);
-							m_ctrl_pic_name.SetWindowTextA(s_image_url);
-							
-							CRect rect;//픽쳐 컨트롤의 크기를 저장할 CRect 객체
-							m_picture_control.GetWindowRect(rect);//GetWindowRect를 사용해서 픽쳐 컨트롤의 크기를 받는다.
-							CDC* dc; //픽쳐 컨트롤의 DC를 가져올  CDC 포인터
-							dc = m_picture_control.GetDC(); //픽쳐 컨트롤의 DC를 얻는다.
-							
-							CImage image;//불러오고 싶은 이미지를 로드할 CImage 
-							image.Load(s_image_url);//이미지 로드
-							image.StretchBlt(dc->m_hDC, 0, 0, rect.Width(), rect.Height(), SRCCOPY);//이미지를 픽쳐 컨트롤 크기로 조정
-							ReleaseDC(dc);//DC 해제
-
-
 						}
 					}
+
 				}
 
 			}
@@ -614,9 +592,21 @@ void CRFIDDlg::OnDBUpdate()
 
 }
 
-void CRFIDDlg::OnDataInput()
+void CRFIDDlg::OnMusicPlay()
 {
-
+	CString caption;
+	GetDlgItemText(IDC_BUTTON4, caption);
+	CString szSoundPath = _T("./bgm.wav");
+	if (caption == _T("Music Play"))
+	{
+		SetDlgItemText(IDC_BUTTON4, _T("Music Stop"));
+		PlaySound(szSoundPath, AfxGetInstanceHandle(), SND_ASYNC | SND_LOOP); // 무한
+	}
+	else
+	{
+		SetDlgItemText(IDC_BUTTON4, _T("Music Play"));
+		PlaySound(NULL, AfxGetInstanceHandle(), NULL); // 정지
+	}
 
 
 	/*
